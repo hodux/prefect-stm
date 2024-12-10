@@ -1,4 +1,3 @@
-import httpx
 from prefect import flow, task
 import requests
 from google.protobuf.json_format import MessageToDict
