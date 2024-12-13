@@ -9,6 +9,6 @@ if __name__ == "__main__":
     ).deploy(
         name="stm-deployment",
         work_pool_name="stm-work-pool", # Work pool target
-        cron="*/10 * * * *", # Cron schedule (every 10 minutes)
+        cron="*/5 * * * *", # Cron schedule (every 5 minutes)
     )
 

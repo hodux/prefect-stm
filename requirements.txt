@@ -1,4 +1,5 @@
-protobuf
+protobuf==3.20.3
 prefect
 requests
 pymongo
+pandas
