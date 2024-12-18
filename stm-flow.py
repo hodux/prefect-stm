@@ -5,22 +5,21 @@ import gtfs_realtime_pb2
 from pymongo import MongoClient
 import pandas as pd
 
-# Prefect flow to automate pushing prepared data every few minutes into Mongo Atlas - Mathieu
+# - Mathieu
+# Prefect flow to automate pushing prepared data to MongoDB every few minutes
+# (Configurable in create-stm-deployment.py)
 # After creating a python venv and installing the libraries from requirements.txt,
 # run the flow on a prefect server with the deployment file provided. Here's how,
+# - Compile .proto file -
+# protoc --proto_path=. --python_out=. gtfs-realtime.proto
 # - Run the prefect server -
 # prefect server start
-# - Create a work pool and start a worker -
+# - Create a work pool and start a worker in a separate terminal -
 # prefect work-pool create --type process stm-work-pool
 # prefect worker start --pool stm-work-pool
 # - Create the deployment and schedule it -
 # python create-stm-deployment.py
 # prefect deployment run 'push_stm_data/stm-deployment'
-
-# - Install libraries and compile .proto file -
-# pip install -U pymongo requests pandas prefect
-# pip install protobuf==3.20.3
-# protoc --proto_path=. --python_out=. gtfs-realtime.proto
 
 MONGO_URI = "mongodb+srv://user:alpha123@cid-stm-test.skq19.mongodb.net/?retryWrites=true&w=majority&appName=CID-STM-test"
 DB_NAME = "gtfs_cleaned"
@@ -76,14 +75,14 @@ def parse_to_dict(data: bytes):
 @task
 def clean_etat_data(data: str):
     informed_entities_df = pd.json_normalize(
-        data['alerts'], 
+        data['alerts'],
         record_path=['informed_entities'],
         meta=['cause', 'effect', ['active_periods', 'start'], ['active_periods', 'end']],
         errors='ignore'
     )
 
     description_texts_df = pd.json_normalize(
-        data['alerts'], 
+        data['alerts'],
         record_path=['description_texts'],
         meta=['cause', 'effect', ['active_periods', 'start'], ['active_periods', 'end']],
         errors='ignore'
@@ -93,9 +92,9 @@ def clean_etat_data(data: str):
     final_df = pd.merge(informed_entities_df,
                         description_texts_df_fr[['language', 'text']],
                         left_index=True,
-                        right_index=True, 
+                        right_index=True,
                         how='left')
-    
+
     etat_output = final_df[['route_short_name', 'direction_id', 'text']]
 
     etat_output = etat_output.to_dict(orient="records")
@@ -166,8 +165,10 @@ def push_to_mongo(data: dict, mongo_uri: str, db_name: str, db_collection: str) 
 
 @flow
 def push_stm_data():
+    # etat_data ended up not being used, ignoring it to improve performance
+
     # Fetching process
-    etat_data = fetch_json_data(ETAT_API_URL, ETAT_HEADERS)
+    # etat_data = fetch_json_data(ETAT_API_URL, ETAT_HEADERS)
     vehicles_protobuf_data = fetch_protobuf_data(VEHICLES_API_URL, HEADERS)
     trips_protobuf_data = fetch_protobuf_data(TRIPS_API_URL, HEADERS)
 
@@ -176,15 +177,14 @@ def push_stm_data():
     trips_dict_data = parse_to_dict(trips_protobuf_data)
 
     # Cleaning process
-    cleaned_etat_data = clean_etat_data(etat_data)
+    # cleaned_etat_data = clean_etat_data(etat_data)
     cleaned_vehicles_data = clean_vehicles_data(vehicles_dict_data)
     cleaned_trips_data = clean_trips_data(trips_dict_data)
 
     # Pushing to mongo
-    push_to_mongo(cleaned_etat_data, MONGO_URI, DB_NAME, DB_COLLECTION_ETAT)
+    # push_to_mongo(cleaned_etat_data, MONGO_URI, DB_NAME, DB_COLLECTION_ETAT)
     push_to_mongo(cleaned_vehicles_data, MONGO_URI, DB_NAME, DB_COLLECTION_VEHICLES)
     push_to_mongo(cleaned_trips_data, MONGO_URI, DB_NAME, DB_COLLECTION_TRIPS)
-
 
 if __name__ == "__main__":
     push_stm_data()
