@@ -158,6 +158,8 @@ def push_to_mongo(data: dict, mongo_uri: str, db_name: str, db_collection: str) 
     db = client[db_name]
     collection = db[db_collection]
 
+    collection.delete_many({})
+
     if isinstance(data, list):
         collection.insert_many(data)
     else:
